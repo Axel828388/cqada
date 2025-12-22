@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>☆DCQADT☆</title>
+	<style>
+		/* =====================
+			 Variables y tipografía
+			 ===================== */
+		:root{
+			--bg1: #6b46c1; /* morado */
+			--bg2: #9f7aea; /* lavanda */
+			--accent: #ffd6ea;
+			--text: #fff;
+			--glass: rgba(255,255,255,0.06);
+			--glass-strong: rgba(255,255,255,0.08);
+			--radius: 14px;
+			--transition: 420ms cubic-bezier(.22,.9,.38,1);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+		}
+		[data-theme="dark"]{
+			--bg1: #2b0633;
+			--bg2: #3b1650;
+			--accent: #ffb6da;
+			--text: #f7f7fb;
+			--glass: rgba(255,255,255,0.03);
+			--glass-strong: rgba(255,255,255,0.05);
+		}
+
+		*{box-sizing:border-box}
+		html,body{height:100%;margin:0}
+		body{
+			color:var(--text);
+			-webkit-font-smoothing:antialiased;
+			-moz-osx-font-smoothing:grayscale;
+			overflow:hidden;
+			background: linear-gradient(120deg, var(--bg1), var(--bg2));
+			display:flex;align-items:center;justify-content:center;
+		}
+
+		/* fondo animado aurora */
+		.aurora{position:fixed;inset:0;pointer-events:none;mix-blend-mode:overlay}
+		.canvas-wrap{position:fixed;inset:0;z-index:0}
+
+		/* Contenedor principal */
+		.app{
+			z-index:2;position:relative;width:min(920px,94vw);height:min(820px,92vh);
+			display:flex;flex-direction:column;align-items:center;justify-content:center;
+			gap:18px;padding:28px;border-radius:22px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));backdrop-filter: blur(6px);
+			box-shadow: 0 10px 40px rgba(8,8,12,0.35);
+		}
+
+		header{width:100%;display:flex;align-items:center;justify-content:space-between}
+		h1{font-weight:600;font-size:clamp(18px,3.4vw,28px);margin:0}
+		.controls{display:flex;gap:8px;align-items:center}
+		.btn{background:var(--glass);color:var(--text);border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:999px;cursor:pointer;transition:transform var(--transition),background var(--transition)}
+		.btn:active{transform:scale(.98)}
+
+		/* Caja interactiva central */
+		.center{
+			display:flex;flex-direction:column;align-items:center;gap:16px;flex:1;justify-content:center;width:100%
+		}
+
+		.touch-area{
+			width:min(640px,86%);max-width:92%;min-height:160px;border-radius:18px;padding:22px;background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;border:1px solid var(--glass-strong);
+			touch-action: manipulation;
+		}
+		.prompt{font-size:clamp(16px,3.2vw,22px);text-align:center;opacity:.98}
+
+		/* Mejor contraste: panel ligero detrás del prompt */
+		.prompt{background:rgba(0,0,0,0.22);padding:8px 12px;border-radius:10px;box-shadow:0 6px 18px rgba(8,6,12,0.28);display:inline-block}
+
+		/* Aplicar efecto de fondo/contraste a textos fuera del diario */
+		.app h1{background:rgba(0,0,0,0.22);padding:8px 12px;border-radius:10px;display:inline-block;box-shadow:0 8px 20px rgba(8,6,12,0.28)}
+		.app .meta > div{background:rgba(0,0,0,0.16);padding:6px 10px;border-radius:8px;display:inline-block}
+		.app .controls .btn{background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.05)}
+		/* Estilo especial para el botón Diario: panel con contraste y sombra */
+		#openDiary{background:rgba(0,0,0,0.22);padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(8,6,12,0.28);border:1px solid rgba(255,255,255,0.06)}
+		#openDiary:active{transform:translateY(1px) scale(.995)}
+		.app .phrase-wrap{background:transparent}
+
+		.phrase{margin-top:12px;font-size:clamp(14px,2.6vw,20px);text-align:center;max-width:80%;line-height:1.3}
+
+		/* animaciones para la phrase */
+		.phrase-wrap{position:relative;display:flex;align-items:center;justify-content:center;min-height:56px}
+		/* Efectos de texto */
+		.typed{font-variation-settings: 'wght' 600;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.12));}
+		.glow{box-shadow:0 8px 30px rgba(255,200,230,0.12);text-shadow:0 2px 18px rgba(255,200,230,0.12)}
+		.caret{display:inline-block;background:linear-gradient(90deg,currentColor,transparent);width:2px;height:1em;vertical-align:bottom;margin-left:2px;animation:blink 1s steps(2) infinite}
+		@keyframes blink{50%{opacity:0}}
+				.bubble{
+			display:inline-block;padding:12px 18px;border-radius:12px;background:rgba(0,0,0,0.30);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.06);color:var(--text);box-shadow:0 10px 30px rgba(8,6,20,0.35)
+		}
+
+		@keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
+		.float{animation:floaty 3.6s ease-in-out infinite}
+		@keyframes fadeInUp{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+		.reveal{animation:fadeInUp var(--transition) both}
+
+		/* contador y subtítulo */
+		.meta{display:flex;gap:12px;align-items:center;font-size:13px;opacity:.95}
+
+		/* Modal diario */
+		.modal-backdrop{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,6,8,0.45);z-index:6;opacity:0;pointer-events:none;transition:opacity var(--transition)}
+		.modal{width:min(900px,92vw);max-height:86vh;overflow:auto;border-radius:14px;padding:20px;background:linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.22));border:1px solid rgba(255,255,255,0.06);transform:translateY(16px);transition:transform var(--transition);color:var(--text)}
+		.modal.open{transform:translateY(0)}
+		.modal-backdrop.open{opacity:1;pointer-events:auto}
+		.entry{padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);margin-bottom:10px;color:var(--text);border:1px solid rgba(255,255,255,0.04)}
+
+		/* Confetti y corazones */
+		.particle{position:fixed;pointer-events:none;border-radius:50%;mix-blend-mode:screen;z-index:5}
+
+		/* Responsivo y accesibilidad */
+		@media (max-width:520px){
+			.app{padding:16px;border-radius:14px}
+			.touch-area{min-height:180px;padding:18px}
+			.btn{padding:10px 14px}
+		}
+
+		.touch-area.disabled{pointer-events:none;opacity:.9}
+
+	</style>
+	</head>
+	<body>
+		<div id="toast" role="status" aria-live="polite" style="position:fixed;left:50%;top:18px;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:12px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity 280ms;font-size:15px;box-shadow:0 8px 30px rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.06);max-width:92vw;text-align:center">Mensaje</div>
+
+		<!-- Modal para límite diario -->
+		<div id="limitModalBackdrop" class="modal-backdrop" aria-hidden="true">
+			<div class="modal" role="dialog" aria-modal="true" aria-labelledby="limitTitle">
+				<div style="text-align:center;padding:8px 4px">
+					<h2 id="limitTitle" style="margin:0 0 8px">Límite diario alcanzado</h2>
+					<p id="limitMsg" style="margin:0 0 12px;opacity:.95">Has descubierto las frases de hoy. Vuelve mañana para más sorpresas.</p>
+					<div id="limitTimer" style="font-weight:600;margin-bottom:12px">--:--:--</div>
+					<div style="display:flex;gap:10px;justify-content:center">
+						<button id="closeLimit" class="btn">Cerrar</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	<div class="canvas-wrap"><canvas id="bgCanvas"></canvas></div>
+	<div class="app" role="application">
+		<header>
+			<h1>☆ Descubre cosas que amo de ti ☆</h1>
+			<div class="controls">
+				<button id="openDiary" class="btn" title="Abrir diario">Diario</button>
+			</div>
+		</header>
+
+		<main class="center">
+			<div id="touch" class="touch-area" role="button" aria-label="Descubrir razón">
+				<div class="prompt">¡Hola Risita!💜 Toca o haz clic aquí para descubrir algunas cositas que amo de ti!</div>
+				<div class="phrase-wrap" id="phraseWrap"></div>
+			</div>
+
+			<div class="meta">
+				<div id="counter">Frases descubiertas: 0</div>
+					<div id="dailyTimer" style="font-size:13px;opacity:.95">Restante: --:--:--</div>
+			</div>
+		</main>
+	</div>
+
+	<!-- Modal diario -->
+	<div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+		<div class="modal" role="dialog" aria-modal="true">
+			<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+				<strong>Diario de frases</strong>
+				<div style="display:flex;gap:8px">
+					<button id="closeDiary" class="btn">Cerrar</button>
+				</div>
+			</div>
+			<div id="entries"></div>
+		</div>
+	</div>
+
+	<script>
+		/* =====================
+			 Datos y configuración
+			 ===================== */
+		const PHRASES = [
+			"Contigo cada día es un regalo inesperado.",
+			"Tu risa ilumina mis momentos más grises.",
+			"Adoro cómo ves el mundo con ojos de esperanza.",
+			"Amo la forma en que haces que todo parezca posible.",
+			"Eres calma, luz y motivación en una sola persona.",
+			"Hay algo en ti que hace que quiera crecer y soñar más.",
+			"Me encanta tu manera de hacerme sentir especial sin mucho esfuerzo.",
+			"Tu mirada sostiene los pedazos bonitos de mi día.",
+			"Todo cobra sentido cuando estoy contigo.",
+			"Amo que me inspires a ser mejor sin presionarme.",
+			"Me pierdo en la forma en que hablas de tus pasiones.",
+			"Tu voz tiene el ritmo de mi paz.",
+			"Amo tu forma de hacer reír incluso mis silencios más profundos.",
+			"Eres mi razón para creer en los comienzos.",
+			"Tu ternura convierte lo ordinario en magia.",
+			"Amo cómo haces que mi mundo gire más suave.",
+			"Tu fuerza me impulsa a seguir adelante.",
+			"Cómo disfruto cada detalle de ti.",
+			"Como haces que cada momento juntos sea inolvidable.",
+			"Me encanta cómo sueñas en voz alta.",
+			"Eres la sorpresa más bonita de mi vida.",
+			"Tu risa es un faro en nuestras noches largas.",
+			"Cada día contigo es una página que atesoro.",
+			"Tu mirada tiene mapas que quiero explorar.",
+			"Amo la honestidad de tus sentimientos.",
+			"Que siempre eres la calma después de la tormenta.",
+			"Cómo contigo siempre encuentro mi lugar seguro.",
+			"Tu apoyo hace que todo parezca posible.",
+			"Amo el color morado que le das a mis días.",
+			"Tu forma de escuchar me hace sentir importante.",
+			"Eres mi cómplice en risas y silencios.",
+			"Tu cariño hace que el mundo sea más amable.",
+			"Amo tu manera de creer en mí.",
+			"Tu energía positiva es contagiosa.",
+			"Me enamora cómo cuidas tus palabras.",
+			"Amo la forma en que me haces sentir amado.",
+			"Tus ojos me cuentan historias que quiero escuchar siempre.",
+			"Cómo siempre encuentras la forma de sorprenderme.",
+		];
+
+		const SPECIALS = [
+			"Eres mi refugio y mi aventura favorita a la vez.",
+			"Prometo cuidar de tus sueños como cuidas los míos."
+		];
+
+		const ALL = PHRASES.concat(SPECIALS);
+		const STORAGE_KEY = 'diario_frases_v1';
+
+		/* =====================
+			 Estado en memoria
+			 ===================== */
+		let shownIndices = new Set();
+		let diary = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+		let interactions = 0;
+		let themeIndex = 0; // 0 default, 1 dark
+
+		/* =====================
+			 Elementos DOM
+			 ===================== */
+		const touch = document.getElementById('touch');
+		const phraseWrap = document.getElementById('phraseWrap');
+		const counter = document.getElementById('counter');
+		const modalBackdrop = document.getElementById('modalBackdrop');
+		const entries = document.getElementById('entries');
+		const openDiary = document.getElementById('openDiary');
+		const closeDiary = document.getElementById('closeDiary');
+
+		/* Audio: WebAudio simple para pop/tint (suave) */
+		let audioCtx = null;
+		let soundEnabled = true;
+
+		function ensureAudio(){
+			if(audioCtx) return;
+			audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+		}
+
+		function playPop(){
+			if(!soundEnabled) return;
+			ensureAudio();
+			const o = audioCtx.createOscillator();
+			const g = audioCtx.createGain();
+			o.type = 'triangle'; o.frequency.value = 140;
+			g.gain.value = 0.0001;
+			o.connect(g); g.connect(audioCtx.destination);
+			const now = audioCtx.currentTime;
+			g.gain.linearRampToValueAtTime(0.035, now + 0.005);
+			g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+			o.start(now); o.stop(now + 0.28);
+		}
+
+		function playTinkle(){
+			if(!soundEnabled) return;
+			ensureAudio();
+			const o = audioCtx.createOscillator();
+			const g = audioCtx.createGain();
+			o.type = 'sine'; o.frequency.value = 680 + Math.random()*160;
+			g.gain.value = 0.0001;
+			o.connect(g); g.connect(audioCtx.destination);
+			const now = audioCtx.currentTime;
+			g.gain.linearRampToValueAtTime(0.06, now + 0.004);
+			g.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+			o.start(now); o.stop(now + 0.9);
+		}
+
+		/* =====================
+			 Inicializar diary en UI
+			 ===================== */
+		let diaryFilterFav = false;
+		function renderDiary(){
+			entries.innerHTML = '';
+			if(diary.length===0){
+				entries.innerHTML = '<div style="opacity:.9">Aún no hay frases descubiertas.</div>';
+				return;
+			}
+			const list = diary.slice().reverse().filter(item => diaryFilterFav ? item.fav : true);
+			list.forEach((item,i)=>{
+				const div = document.createElement('div'); div.className='entry';
+				const favClass = item.fav ? '★' : '☆';
+				div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">`+
+					`<div style=\"font-size:14px;max-width:86%\">${escapeHtml(item.text)}</div>`+
+					`<button class=\"btn fav-btn\" data-idx=\"${item.idx}\">${favClass}</button>`+
+					`</div><div style="font-size:12px;opacity:.85">${new Date(item.t).toLocaleString()}</div>`;
+				entries.appendChild(div);
+			});
+
+			// attach favorite handlers
+			document.querySelectorAll('.fav-btn').forEach(btn=>{
+				btn.addEventListener('click', (e)=>{
+					const idx = Number(btn.getAttribute('data-idx'));
+					// find the last occurrence in diary with this idx (reverse order)
+					for(let i=diary.length-1;i>=0;i--){ if(diary[i].idx===idx){ diary[i].fav = !diary[i].fav; break; } }
+					saveDiary();
+				});
+			});
+		}
+
+		// add filter button in modal header
+		const modalHeader = document.querySelector('#modalBackdrop .modal > div');
+		const filterBtn = document.createElement('button'); filterBtn.className='btn'; filterBtn.style.marginLeft='8px'; filterBtn.textContent='Mostrar: Todas';
+		modalHeader.querySelector('div').appendChild(filterBtn);
+		filterBtn.addEventListener('click', ()=>{
+			diaryFilterFav = !diaryFilterFav; filterBtn.textContent = diaryFilterFav ? 'Mostrar: Favoritas' : 'Mostrar: Todas'; renderDiary();
+		});
+
+		function saveDiary(){
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(diary));
+			renderDiary();
+		}
+
+		/* Daily limit: máximo N frases por día */
+		const DAILY_KEY = 'diario_counts_v1';
+		const DAILY_LIMIT = 6;
+
+		function getDailyCounts(){
+			return JSON.parse(localStorage.getItem(DAILY_KEY) || '{}');
+		}
+
+		function incDailyCount(){
+			const counts = getDailyCounts();
+			const day = new Date().toISOString().slice(0,10);
+			counts[day] = (counts[day]||0) + 1;
+			localStorage.setItem(DAILY_KEY, JSON.stringify(counts));
+			return counts[day];
+		}
+
+		function todayCount(){
+			const counts = getDailyCounts();
+			const day = new Date().toISOString().slice(0,10);
+			return counts[day]||0;
+		}
+
+		function showToast(msg, ms=2400){
+			const t = document.getElementById('toast'); t.textContent = msg; t.style.opacity=1; t.style.pointerEvents='auto';
+			clearTimeout(t._to);
+			t._to = setTimeout(()=>{ t.style.opacity=0; t.style.pointerEvents='none'; }, ms);
+		}
+
+		/* Límite modal helpers */
+		function openLimitModal(secs){
+			const b = document.getElementById('limitModalBackdrop');
+			b.classList.add('open'); b.setAttribute('aria-hidden','false');
+			document.getElementById('limitTimer').textContent = formatHMS(secs);
+		}
+
+		function updateLimitModal(secs){
+			const el = document.getElementById('limitTimer'); if(el) el.textContent = formatHMS(secs);
+		}
+
+		function closeLimitModal(){
+			const b = document.getElementById('limitModalBackdrop');
+			if(b){ b.classList.remove('open'); b.setAttribute('aria-hidden','true'); }
+		}
+
+		// close button for limit modal
+		document.addEventListener('click', (e)=>{
+			if(e.target && e.target.id==='closeLimit'){
+				closeLimitModal();
+			}
+		});
+
+		/* Timer hasta el próximo día y UI diaria */
+		function timeUntilNextDay(){
+			const now = new Date();
+			const next = new Date(now);
+			next.setDate(now.getDate()+1);
+			next.setHours(0,0,0,0);
+			return Math.max(0, Math.floor((next - now)/1000));
+		}
+
+		function formatHMS(sec){
+			const h = Math.floor(sec/3600); const m = Math.floor((sec%3600)/60); const s = sec%60;
+			return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+		}
+
+		function updateTimer(){
+			const secs = timeUntilNextDay();
+			document.getElementById('dailyTimer').textContent = `Restan: ${formatHMS(secs)}`;
+			if(todayCount() >= DAILY_LIMIT){
+				// disable touch area
+				document.getElementById('touch').classList.add('disabled');
+				// show limit modal (only once while reached)
+				if(!window._limitModalOpen){
+					openLimitModal(secs);
+					window._limitModalOpen = true;
+				}
+				// update modal timer if open
+				updateLimitModal(secs);
+			} else {
+				document.getElementById('touch').classList.remove('disabled');
+				window._limitModalOpen = false;
+				// ensure modal closed
+				closeLimitModal();
+			}
+		}
+
+		setInterval(updateTimer, 1000);
+		updateTimer();
+
+		function escapeHtml(s){return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c])}
+
+		/* =====================
+			 Mostrar frase
+			 ===================== */
+		function pickNext(){
+			// First, try to pick from PHRASES until all shown, then allow specials
+			const totalNormal = PHRASES.length;
+			const unseenNormal = [];
+			for(let i=0;i<totalNormal;i++) if(!shownIndices.has(i)) unseenNormal.push(i);
+
+			if(unseenNormal.length>0) return unseenNormal[Math.floor(Math.random()*unseenNormal.length)];
+
+			// After all normal seen, unlock specials progressively
+			const startSpecialIndex = PHRASES.length;
+			const unseenSpecial = [];
+			for(let i=0;i<SPECIALS.length;i++) if(!shownIndices.has(startSpecialIndex+i)) unseenSpecial.push(startSpecialIndex+i);
+			if(unseenSpecial.length>0) return unseenSpecial[Math.floor(Math.random()*unseenSpecial.length)];
+
+			// All shown -> return -1 to show final secret
+			return -1;
+		}
+
+		function typeText(container, text, cb){
+			container.innerHTML = '';
+			const span = document.createElement('span'); span.className='typed'; container.appendChild(span);
+			let i=0; const speed = Math.max(18, Math.floor(28 - text.length/6));
+			const caret = document.createElement('span'); caret.className='caret'; container.appendChild(caret);
+			function step(){
+				if(i<=text.length){
+					span.textContent = text.slice(0,i);
+					i++;
+					if(i%3===0) playPop();
+					setTimeout(step, speed);
+				}else{
+					caret.remove(); if(cb) cb();
+				}
+			}
+			step();
+		}
+
+		function showPhrase(){
+			interactions++;
+			// Visual feedback
+			pulse(touch);
+			// check next phrase availability
+			const idx = pickNext();
+			if(idx===-1){
+				showFinalSecret();
+				return;
+			}
+
+			// enforce daily limit (block interaction when reached)
+			if(todayCount() >= DAILY_LIMIT){
+				// open the limit modal immediately
+				openLimitModal(timeUntilNextDay()); window._limitModalOpen = true;
+				return;
+			}
+
+			const text = ALL[idx];
+			shownIndices.add(idx);
+			diary.push({text, t: Date.now(), idx, fav:false});
+			incDailyCount();
+			saveDiary();
+			updateTimer();
+			updateCounter();
+
+			// render phrase
+			phraseWrap.innerHTML = '';
+			const bwrap = document.createElement('div'); bwrap.className='bubble float reveal';
+			phraseWrap.appendChild(bwrap);
+			// typing effect then tinkle
+			typeText(bwrap, text, ()=>{ playTinkle(); bwrap.classList.add('glow'); setTimeout(()=>bwrap.classList.remove('glow'), 1300); });
+
+			// particle bursts for special or every few interactions
+			if(idx >= PHRASES.length) {
+				// special
+				burst({count:30, hue:320});
+			} else if(interactions % 5 === 0){
+				burst({count:16, hue:290});
+			} else {
+				sparkle({count:8});
+			}
+		}
+
+		function updateCounter(){
+			counter.innerText = `Frases descubiertas: ${diary.length}`;
+		}
+
+		/* =====================
+			 Final secreto
+			 ===================== */
+		function showFinalSecret(){
+			const overlay = document.createElement('div');
+			overlay.style.position='fixed';overlay.style.inset=0;overlay.style.display='flex';overlay.style.alignItems='center';overlay.style.justifyContent='center';overlay.style.zIndex=8;overlay.style.background='rgba(6,6,8,0.6)';
+			overlay.innerHTML = `<div style="padding:28px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));text-align:center;max-width:86vw">`+
+				`<h2 style="margin:0 0 8px">Has descubierto todo</h2><p style="opacity:.95;margin:0 0 16px">Tengo un secreto: cada día encuentro una razón nueva para amarte.</p><button id="closeFinal" class="btn">Cerrar</button>`+
+				`</div>`;
+			document.body.appendChild(overlay);
+			document.getElementById('closeFinal').addEventListener('click',()=>overlay.remove());
+			burst({count:40,hue:330});
+		}
+
+		/* =====================
+			 Efectos visuales: confeti/heart/particle
+			 ===================== */
+		function rand(min,max){return Math.random()*(max-min)+min}
+
+		function createParticle(opts){
+			const el = document.createElement('div'); el.className='particle';
+			const size = rand(8,20); el.style.width = size+'px'; el.style.height = size+'px';
+			el.style.left = (opts.x||window.innerWidth/2)+'px'; el.style.top=(opts.y||window.innerHeight/2)+'px';
+			el.style.background = `hsl(${opts.hue||300} ${opts.s||80}% ${opts.l||70}%)`;
+			el.style.opacity = 1; el.style.transform = `translate(-50%,-50%) scale(1)`;
+			document.body.appendChild(el);
+			const dx = rand(-160,160); const dy = rand(-260,-40); const rot = rand(-360,360);
+			const dur = rand(800,1500);
+			el.animate([
+				{transform:`translate(-50%,-50%) translate(0px,0px) rotate(0deg) scale(1)`,opacity:1},
+				{transform:`translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot}deg) scale(.6)`,opacity:0}
+			],{duration:dur, easing:'cubic-bezier(.16,.9,.3,1)'}).onfinish = ()=>el.remove();
+		}
+
+		function burst({count=12,hue=300}={}){const r=[];for(let i=0;i<count;i++)createParticle({hue});}
+		function sparkle({count=6}={}){burst({count,hue:280});}
+
+		function pulse(el){el.animate([{transform:'scale(1)'},{transform:'scale(.98)'}],{duration:220,fill:'forwards',direction:'alternate'})}
+
+		/* =====================
+			 Canvas background: partículas suaves y aurora
+			 ===================== */
+		const canvas = document.getElementById('bgCanvas');
+		const ctx = canvas.getContext('2d');
+		let W, H, particles = [];
+		function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}
+		window.addEventListener('resize',resize);resize();
+
+		function initParticles(){particles=[];for(let i=0;i<80;i++){particles.push({x:Math.random()*W,y:Math.random()*H,rad:rand(0.8,3.5),vx:rand(-0.15,0.15),vy:rand(-0.04,0.18),alpha:rand(0.06,0.22)})}}
+		initParticles();
+
+		let tStart = performance.now();
+		function draw(now){
+			const t = (now - tStart)/1000;
+			// aurora gradient
+			const g = ctx.createLinearGradient(0,0,W,H);
+			g.addColorStop(0, 'rgba(255,255,255,0.01)');
+			g.addColorStop(0.4, 'rgba(255,255,255,0.02)');
+			g.addColorStop(1, 'rgba(0,0,0,0.02)');
+			ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+			// moving faint bands
+			for(let i=0;i<3;i++){
+				ctx.fillStyle = `hsla(${260 + i*20},70%,55%,${0.02*Math.abs(Math.sin(t*0.2 + i))})`;
+				ctx.beginPath();
+				const y = H * (0.3 + i*0.22 + 0.03*Math.sin(t*0.9 + i));
+				ctx.ellipse(W*0.5, y, W*0.9, H*0.15, Math.sin(t*0.5+i)*0.3, 0, Math.PI*2);
+				ctx.fill();
+			}
+
+			// particles
+			for(const p of particles){
+				p.x += p.vx; p.y -= p.vy;
+				if(p.x< -20) p.x=W+20; if(p.x>W+20) p.x=-20; if(p.y < -30) p.y = H+20;
+				ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
+				ctx.beginPath(); ctx.arc(p.x,p.y,p.rad,0,Math.PI*2); ctx.fill();
+			}
+
+			requestAnimationFrame(draw);
+		}
+		requestAnimationFrame(draw);
+
+		/* =====================
+			 Modal y controles
+			 ===================== */
+		openDiary.addEventListener('click', ()=>{ modalBackdrop.classList.add('open'); modalBackdrop.setAttribute('aria-hidden','false'); document.querySelector('.modal').classList.add('open'); renderDiary(); });
+		closeDiary.addEventListener('click', ()=>{ modalBackdrop.classList.remove('open'); modalBackdrop.setAttribute('aria-hidden','true'); document.querySelector('.modal').classList.remove('open'); });
+		modalBackdrop.addEventListener('click', (e)=>{ if(e.target===modalBackdrop) closeDiary.click(); });
+
+
+
+		/* =====================
+			 Touch/click handling
+			 ===================== */
+		let tapTimeout = null;
+		touch.addEventListener('click', showPhrase);
+		touch.addEventListener('touchstart', (e)=>{ e.preventDefault(); showPhrase(); });
+
+		// inicializar UI
+		updateCounter(); renderDiary();
+
+		// expose some helpers to console for debugging
+		window._app = {diary,PHRASES,SPECIALS,showPhrase,burst};
+	</script>
+</body>
+</html>
