@@ -231,6 +231,8 @@
 			 ===================== */
 		let shownIndices = new Set();
 		let diary = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+		// restore shownIndices from existing diary so counters reflect past progress
+		if(Array.isArray(diary) && diary.length>0){ diary.forEach(d=>{ if(typeof d.idx === 'number') shownIndices.add(d.idx); }); }
 		let interactions = 0;
 		let themeIndex = 0; // 0 default, 1 dark
 
@@ -316,6 +318,8 @@
 
 		// add filter button in modal header
 		const modalHeader = document.querySelector('#modalBackdrop .modal > div');
+		const statsSpan = document.createElement('div'); statsSpan.id = 'diaryStats'; statsSpan.style.opacity = '.95'; statsSpan.style.fontSize = '13px'; statsSpan.style.marginRight = '8px'; statsSpan.textContent = 'Descubiertas: 0/' + PHRASES.length + ' · Entradas: 0 · Favoritas: 0';
+		modalHeader.querySelector('div').appendChild(statsSpan);
 		const filterBtn = document.createElement('button'); filterBtn.className='btn'; filterBtn.style.marginLeft='8px'; filterBtn.textContent='Mostrar: Todas';
 		modalHeader.querySelector('div').appendChild(filterBtn);
 		filterBtn.addEventListener('click', ()=>{
@@ -325,6 +329,7 @@
 		function saveDiary(){
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(diary));
 			renderDiary();
+			updateCounter();
 		}
 
 		/* Daily limit: máximo N frases por día */
@@ -502,7 +507,30 @@
 		}
 
 		function updateCounter(){
-			counter.innerText = `Frases descubiertas: ${diary.length}`;
+			const normalSeen = [...shownIndices].filter(i=>i < PHRASES.length).length;
+			counter.innerText = `Frases descubiertas: ${normalSeen}/${PHRASES.length}`;
+			// if diary modal has stats element, update it too
+			const ds = document.getElementById('diaryStats');
+			if(ds){
+				const favCount = diary.filter(d=>d.fav).length;
+				ds.textContent = `Descubiertas: ${normalSeen}/${PHRASES.length} · Entradas: ${diary.length} · Favoritas: ${favCount}`;
+			}
+			// celebrate when all normal phrases discovered (only once per session)
+			if(normalSeen >= PHRASES.length && !window._allNormalsShown){
+				window._allNormalsShown = true;
+				showAllNormalsMessage();
+			}
+		}
+
+		function showAllNormalsMessage(){
+			const overlay = document.createElement('div');
+			overlay.style.position='fixed';overlay.style.inset=0;overlay.style.display='flex';overlay.style.alignItems='center';overlay.style.justifyContent='center';overlay.style.zIndex=9;overlay.style.background='rgba(6,6,8,0.62)';
+			overlay.innerHTML = `<div style="padding:26px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));text-align:center;max-width:86vw">`+
+				`<h2 style="margin:0 0 8px">¡Lo lograste!</h2><p style="opacity:.95;margin:0 0 16px">Has descubierto todas las razones principales. Gracias por cada momento compartido.</p><button id="closeAll" class="btn">Cerrar</button>`+
+				`</div>`;
+			document.body.appendChild(overlay);
+			document.getElementById('closeAll').addEventListener('click',()=>overlay.remove());
+			burst({count:36,hue:320});
 		}
 
 		/* =====================
